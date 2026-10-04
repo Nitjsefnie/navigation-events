@@ -59,3 +59,9 @@ def test_cli_rejects_an_unknown_device():
     with pytest.raises(SystemExit) as error:
         main(["--data-dir", "data", "--device", "mobile", "--out", "out"])
     assert error.value.code == 2
+
+
+def test_run_fails_on_an_invalid_event(spark, write_sources, source_rows, tmp_path):
+    source_rows["box-change"][0]["serialId"] = -1
+    with pytest.raises(ValueError, match="serialId"):
+        run(spark, write_sources(source_rows), "all", str(tmp_path / "out"))

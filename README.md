@@ -383,8 +383,9 @@ from its time-of-day baseline.
   navigations ending in mouse-down against box-change: a shift towards
   box-change can mean missing tails as much as changed behaviour.
 * **Field completeness and schema drift.** Absence rates per payload field
-  against their by-design baseline (observation 6). The loader reads with
-  `FAILFAST`, so a format change fails the job instead of becoming nulls.
+  against their by-design baseline (observation 6), plus a check that
+  compares the keys producers send with the declared schemas: a declared
+  schema silently ignores a new key and reads a vanished one as null.
 * **Events per navigation by type.** box-change runs at about 29 per
   navigation. A step change there usually means the tracking script changed
   (new tracked boxes, a new visibility threshold), not the users.
@@ -394,9 +395,17 @@ from its time-of-day baseline.
 * **Explicit schemas** instead of inference: inference is an extra pass over
   bzip2 data, and it would type `relativeLayoutSize.width` as a long because
   it only holds `1` or `-1` here. With `mode=FAILFAST` a malformed record
-  fails the job. `eventTime` is parsed with `to_timestamp` under ANSI mode,
-  so a bad value fails too; nanoseconds are truncated to microseconds, and
-  nothing depends on them (the closest duplicate pair is 36 ms apart).
+  (broken JSON, a value of the wrong type) fails the job. `eventTime` is
+  parsed with `to_timestamp` under ANSI mode, so an unparseable value fails
+  too; nanoseconds are truncated to microseconds, and nothing depends on
+  them (the closest duplicate pair is 36 ms apart).
+* **Required fields are checked explicitly.** `FAILFAST` reads a missing key
+  as null. `check_required_fields` fails the run when a client event lacks
+  `navigation`, `serialId`, `relativeTimeMs` or `eventTime`, or has a
+  negative serial or relative time. Failing rather than dropping is
+  deliberate: a dropped row would create the very gap the job measures. The
+  check runs on the cached events, so it costs no extra pass over the
+  files.
 * **Narrow union**: the four client streams are projected to their shared
   columns before `unionByName`, so no mostly-null payload columns travel
   through the shuffles.

@@ -3,7 +3,7 @@
 import pytest
 from pyspark.sql import functions as F
 
-from navigation.loader import attach_device, filter_by_device, load_events
+from navigation.loader import attach_device, check_required_fields, filter_by_device, load_events
 
 
 def test_load_events_unions_the_client_streams(spark, data_dir):
@@ -77,3 +77,26 @@ def test_device_filter(spark, data_dir, device, navigations):
 def test_device_filter_rejects_unknown_device(spark, data_dir):
     with pytest.raises(ValueError):
         filter_by_device(load_events(spark, data_dir), "unknown")
+
+
+@pytest.mark.parametrize("stem, field, value", [
+    ("mouse-down", "serialId", None),       # a key that went missing reads as null
+    ("box-change", "serialId", -1),
+    ("box-create", "relativeTimeMs", -5),
+    ("page-change", "eventTime", None),
+    ("page-change", "navigation", None),
+])
+def test_required_fields_are_checked(spark, write_sources, source_rows, stem, field, value):
+    row = source_rows[stem][0]
+    if value is None:
+        del row[field]
+    else:
+        row[field] = value
+    events = load_events(spark, write_sources(source_rows))
+    with pytest.raises(ValueError, match=field):
+        check_required_fields(events)
+
+
+def test_valid_events_pass_the_required_field_check(spark, data_dir):
+    events = load_events(spark, data_dir)
+    assert check_required_fields(events) is events

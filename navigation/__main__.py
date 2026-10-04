@@ -14,7 +14,7 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
 from navigation import output, tasks
-from navigation.loader import DEVICE_CHOICES, filter_by_device, load_events
+from navigation.loader import DEVICE_CHOICES, check_required_fields, filter_by_device, load_events
 from navigation.spark import get_spark
 
 TASKS = {
@@ -70,6 +70,9 @@ def run(spark: SparkSession, data_dir: str, device: str, out_dir: str) -> dict:
     # files are decompressed and parsed once per run instead of once per task.
     events = filter_by_device(load_events(spark, data_dir), device).cache()
     try:
+        # Checked on the cached population the tasks read, so it costs no
+        # extra pass over the bzip2 files.
+        check_required_fields(events)
         results = {name: output.write_csv(task(events), out / f"{name}.csv") for name, task in TASKS.items()}
         output.plot_lost_events_histogram(
             results["task3_lost_events_histogram"], device, out / "task3_lost_events_histogram.png"

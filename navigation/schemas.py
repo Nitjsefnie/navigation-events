@@ -8,8 +8,10 @@ Declared rather than inferred, for three reasons:
   extract and would become a long, so a later file with ``0.5`` would change
   the schema of the job;
 * together with ``mode=FAILFAST`` in the loader, a declared schema turns a
-  producer-side format change into a failed job instead of silent nulls,
-  which is what a monitoring job should do.
+  value of the wrong type into a failed job instead of a silent null, which
+  is what a monitoring job should do. It does not catch a key that goes
+  missing (it reads as null; ``loader.check_required_fields`` covers the
+  keys the measures need) or a new key (the schema ignores it).
 
 Every field observed in a full scan of the files is declared, including the
 payload fields no task reads, so the schemas document the data contract.

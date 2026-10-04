@@ -30,8 +30,10 @@ UNKNOWN_DEVICE = "unknown"
 
 def read_source(spark: SparkSession, data_dir: str, stem: str, schema) -> DataFrame:
     """Read ``<data_dir>/<stem>.json.bz2`` with its declared schema, unmodified."""
-    # FAILFAST: a record that does not fit the schema aborts the job instead
-    # of silently becoming a row of nulls (PERMISSIVE, the default).
+    # FAILFAST: a malformed record (broken JSON, or a value that does not
+    # convert to its declared type) aborts the job instead of silently
+    # becoming a row of nulls (PERMISSIVE, the default). A *missing* key is
+    # not malformed and still reads as null: check_required_fields covers it.
     return (
         spark.read.schema(schema)
         .option("mode", "FAILFAST")
@@ -101,6 +103,31 @@ def attach_device(events: DataFrame, requests: DataFrame) -> DataFrame:
         events.join(F.broadcast(devices), on="navigation", how="left")
         .fillna({"hw_type": UNKNOWN_DEVICE, "has_request": False})
     )
+
+
+def check_required_fields(events: DataFrame) -> DataFrame:
+    """Fail when a client event lacks a field the measures are built on.
+
+    The policy is to fail, not to drop or report and carry on: dropping a
+    row would itself create the gap the job measures, and a loss number
+    computed over a broken serial is wrong rather than approximate. It is
+    the same fail-loud policy as FAILFAST and the ANSI timestamp parse.
+    One aggregation counts every violation, so the error names them all.
+    """
+    # Every measure is built on these. A null or negative serial would turn
+    # into a negative or null loss, a missing time into a null start bound.
+    required = {
+        "navigation is missing": F.col("navigation").isNull(),
+        "serialId is missing or negative": F.col("serial_id").isNull() | (F.col("serial_id") < 0),
+        "relativeTimeMs is missing or negative":
+            F.col("relative_time_ms").isNull() | (F.col("relative_time_ms") < 0),
+        "eventTime is missing": F.col("event_time").isNull(),
+    }
+    counts = events.agg(*[F.count(F.when(bad, 1)).alias(name) for name, bad in required.items()]).first()
+    problems = {name: counts[name] for name in required if counts[name]}
+    if problems:
+        raise ValueError(f"invalid client events (rows per problem): {problems}")
+    return events
 
 
 def load_events(spark: SparkSession, data_dir: str) -> DataFrame:
