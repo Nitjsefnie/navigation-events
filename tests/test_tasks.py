@@ -2,6 +2,8 @@
 
 from datetime import timedelta
 
+from pyspark.sql import functions as F
+
 from conftest import EVENTS_SCHEMA, T0
 from navigation import tasks
 
@@ -51,6 +53,20 @@ def test_started_before_window_uses_arrival_minus_relative_time(spark):
     s = _by_navigation(tasks.navigation_summary(spark.createDataFrame(rows, EVENTS_SCHEMA)))
     assert s[1]["started_before_window"] is True
     assert s[2]["started_before_window"] is False
+
+
+def test_start_bound_is_the_earliest_over_all_events(spark):
+    # Serial 1 arrives right after it happens and bounds the start at 3 s
+    # before the hour. Serial 2 arrives 6 s late and alone would bound it at
+    # 6 s after. The tighter (smaller) bound is the one that holds.
+    rows = [
+        (1, 1, 5000, T0 + timedelta(seconds=2), "box-change", "phone", True),
+        (1, 2, 6000, T0 + timedelta(seconds=12), "mouse-down", "phone", True),
+    ]
+    summary = tasks.navigation_summary(spark.createDataFrame(rows, EVENTS_SCHEMA))
+    row = summary.select(F.unix_micros("implied_start").alias("start_us"), "started_before_window").first()
+    assert row["start_us"] == int((T0 - timedelta(seconds=3)).timestamp()) * 1_000_000
+    assert row["started_before_window"] is True
 
 
 def test_window_starts_at_the_hour_not_at_the_earliest_arrival(spark):
@@ -134,6 +150,19 @@ def test_last_event_is_highest_serial_not_latest_arrival(make_events):
     assert [(r["event_type"], r["navigations"], r["rank"]) for r in result] == [("mouse-down", 1, 1)]
 
 
+def test_last_event_is_highest_serial_when_relative_times_tie(make_events):
+    # Two events of different types share the maximum relativeTimeMs (1 061
+    # navigations tie there, five of them across types). The higher serial
+    # is the later event. The rows come in both orders, so no tie-breaking
+    # by input order can pass by accident.
+    events = make_events([
+        (1, 0, "page-change", "phone", 100), (1, 1, "mouse-down", "phone", 100),
+        (2, 1, "mouse-down", "phone", 100), (2, 0, "page-change", "phone", 100),
+    ])
+    result = tasks.last_event_types(events).collect()
+    assert [(r["event_type"], r["navigations"], r["rank"]) for r in result] == [("mouse-down", 2, 1)]
+
+
 def test_last_event_ties_share_a_rank(make_events):
     events = make_events([
         (1, 0, "page-change"), (1, 1, "mouse-down"),
@@ -170,6 +199,24 @@ def test_event_types_are_counted_once_per_serial(make_events):
     assert rows["box-change"]["navigations_where_most_frequent"] == 2
     assert rows["page-change"]["navigations_where_most_frequent"] == 1
     assert rows["mouse-down"]["navigations_where_most_frequent"] == 1
+
+
+def test_event_types_rank_by_volume_not_by_coverage(make_events):
+    # box-change has more events (3 against 2), page-change appears in more
+    # navigations (2 against 1). The ranking and the shares follow volume.
+    events = make_events([
+        (1, 0, "page-change"), (1, 1, "box-change"), (1, 2, "box-change"), (1, 3, "box-change"),
+        (2, 0, "page-change"),
+    ])
+    result = [
+        (r["event_type"], r["events"], r["share_of_events"], r["navigations_with_type"],
+         r["navigations_where_most_frequent"], r["rank"])
+        for r in tasks.event_type_frequency(events).collect()
+    ]
+    assert result == [
+        ("box-change", 3, 0.6, 1, 1, 1),
+        ("page-change", 2, 0.4, 2, 1, 2),
+    ]
 
 
 def test_event_type_ties_share_a_rank(make_events):
