@@ -16,22 +16,25 @@ All five tasks are solved. Every number below is in `results/`.
 | Task | Definition (short) | all | phone | desktop | tablet |
 |---|---|---:|---:|---:|---:|
 | navigations in scope | at least one client event | 10 454 | 4 690 | 4 585 | 394 |
-| 1. incomplete navigations | a lost client event (prefix or inner gap) | 255 (2.4 %) | 61 (1.3 %) | 27 (0.6 %) | 5 (1.3 %) |
+| 1. incomplete navigations | an absent serial (prefix or inner gap) | 255 (2.4 %) | 61 (1.3 %) | 27 (0.6 %) | 5 (1.3 %) |
 | 2. not starting from zero | lowest received `serialId` > 0 | 163 | 3 | 1 | 0 |
-| 3. lost events in total | missing prefix + inner gaps, summed | 9 052 | 360 | 281 | 42 |
+| 3. lost events in total | absent serials (prefix + inner gaps), summed | 9 052 | 360 | 281 | 42 |
 | 4. most common last event | type at the highest `serialId` | mouse-down 64.0 % | mouse-down 53.9 % | mouse-down 79.2 % | mouse-down 55.1 % |
 | 5. most frequent event type | deduplicated event count | box-change 78.2 % | box-change 77.5 % | box-change 80.1 % | box-change 80.3 % |
 
 `all` is more than the sum of the devices: it also holds 785 navigations
 without a request row, whose device is unknown.
 
-The most important finding: **most of the apparent loss is an artefact of
-how the extract was cut, not loss in delivery.** The extract is one hour of
-`eventTime` (21:00-22:00 UTC). A navigation that began before 21:00 lost its
-request and its first events to the cut. 138 of the 163 navigations that do
-not start from serial 0 provably began before the window, and they carry
-7 299 of the 9 052 lost events. Navigations with a known device lose far
-less: 0.6-1.3 % of them have any gap.
+The most important finding: **most of the apparent loss sits in navigations
+that provably started before the extract window.** The extract is one hour of
+`eventTime` (21:00-22:00 UTC). 138 of the 163 navigations that do not start
+from serial 0 provably began before 21:00, none of them has a request row,
+and together they carry 7 299 of the 9 052 absent serials (7 297 of them in
+the missing prefix). The plausible explanation is the cut itself: their
+request and first events would have arrived before 21:00. The files can't
+prove that, so the flag is reported next to the counts, not subtracted from
+them. Navigations with a known device have far fewer gaps: 0.6-1.3 % of them
+have any.
 
 ## How to run
 
@@ -100,15 +103,20 @@ event type missing from the dataset. The request has no `serialId`, so it is
 a **separate, server-side event outside the serial sequence**. It still
 belongs to the navigation, which starts with the search.
 
-**What is a lost event?** A serial that must have existed but never
-arrived: the **missing prefix** (serials `0 .. first-1`) plus the **inner
-gaps** (holes in `[first, last]`). Because serials start at 0, that is
-`lost = last_serial_id + 1 - distinct serials received`. Counting distinct
-serials matters: a re-delivered event must not fill a hole.
+**What is a lost event?** A serial position inside the observed range that
+is absent from the extract: the **missing prefix** (serials `0 .. first-1`)
+plus the **inner gaps** (holes in `[first, last]`). Because serials start at
+0, that is `lost = last_serial_id + 1 - distinct serials received`. Counting
+distinct serials matters: a re-delivered event must not fill a hole. "Lost"
+is shorthand for absent from this extract. The files can't tell whether an
+absent event was never sent, dropped in delivery, arrived after the window
+closed or belongs to a start before it opened; those stay separate
+hypotheses.
 
 **Can loss at the end be detected?** No. The data has no end marker and no
-"events sent" counter, so a navigation that lost its last three events looks
-complete. Every lost-event number here is a **lower bound**.
+"events sent" counter, so a navigation whose last three events are absent
+looks complete. Every count here is a **lower bound** on a navigation's
+absent events, and none of them says why the events are absent.
 
 **Duplicates.** 85 `(navigation, serialId)` pairs arrive twice, in only 8
 navigations (phone 71, tablet 14, desktop 0). Every copy has the same type
@@ -135,20 +143,23 @@ unloaded.
 events through a **left join on `navigation`** with `request.hwType`; the
 request side is small and broadcast. **785 navigations (7.5 %, 23 568
 events) have client events but no request row.** An inner join would drop
-them silently, together with most of the loss in the data. They are kept
+them silently, together with most of the absent serials in the data. They are kept
 with `hw_type = "unknown"`: they count under `--device all` and under no
 concrete device. No request lacks client events.
 
-**Where does the extract window cut navigations?** An event happens
+**Which navigations started before the window?** An event happens
 `relativeTimeMs` after its navigation starts and can only arrive after it
 happens, so `eventTime - relativeTimeMs` of any event is an upper bound of
 the navigation's start. If the smallest bound is before 21:00, the
-navigation provably began before the window, and its missing start was cut
-off by the extract rather than lost in delivery. That is the
-`started_before_window` column. The bound is tight: for navigations with a
-request it lies 27 ms before the request's arrival at the median. The window
-start is the hour of the earliest `eventTime`, not the earliest arrival
-itself, which would shift with the device filter.
+navigation **provably started before the window**. That is the
+`started_before_window` column. It proves the start, not what happened to
+the absent events: 6 flagged navigations still have their serial 0, and one
+of them its request. A bound after 21:00 proves nothing either way, so
+`False` means **not proven before the window**, not "started inside it"; an
+event that arrived late pushes the bound later. For navigations with a
+request the bound lies 27 ms before the request's arrival at the median.
+The window start is the hour of the earliest `eventTime`, not the earliest
+arrival itself, which would shift with the device filter.
 
 ## The tasks
 
@@ -161,9 +172,9 @@ navigation is kept or dropped whole.
 
 ### 1. Incomplete navigations (`incomplete_navigations`)
 
-**Definition.** A navigation is incomplete when at least one of its client
-events is detectably lost: `lost_events > 0`, a missing prefix or an inner
-gap. A short navigation is not incomplete, and neither is one with
+**Definition.** A navigation is incomplete when at least one serial
+position in its observed range is absent: `lost_events > 0`, a missing
+prefix or an inner gap. A short navigation is not incomplete, and neither is one with
 duplicates only.
 
 **Why.** It is the same measure as task 3, so the non-zero bars of the
@@ -178,10 +189,10 @@ different things. It is reported instead (`has_request` column,
 |---|---:|---:|---:|---:|---:|
 | incomplete navigations | 255 (2.4 %) | 61 (1.3 %) | 27 (0.6 %) | 5 (1.3 %) | 162 (20.6 %) |
 | ... with an inner gap only | 92 | 58 | 26 | 5 | 3 |
-| ... started before the window | 138 | 0 | 0 | 0 | 138 |
+| ... provably started before the window | 138 | 0 | 0 | 0 | 138 |
 
-For known devices the problem is almost always an inner gap, and phones lose
-events about twice as often as desktops.
+For known devices nearly every case is an inner gap (89 of 93), and phones
+have gaps about twice as often as desktops.
 
 ### 2. Navigations not starting from zero (`navigations_not_starting_from_zero`)
 
@@ -192,27 +203,31 @@ of task 1.
 **Result.** 163 navigations under `all`: phone 3, desktop 1, tablet 0,
 unknown 159.
 
-| first serial > 0 | navigations | lost events |
+| first serial > 0 | navigations | absent serials |
 |---|---:|---:|
-| no request, began before the window (start cut off by the extract) | 138 | 7 299 |
-| no request, not provably before the window | 21 | 1 051 |
-| with a request (start genuinely lost) | 4 | 118 |
+| no request, provably started before the window | 138 | 7 299 |
+| no request, not proven before the window | 21 | 1 051 |
+| with a request, not proven before the window | 4 | 118 |
 
-So this is overwhelmingly an **extract-boundary effect**. Only 4
-navigations, all with a known device, truly lost their start; navigation
-2819, for example, received a single event, serial 1. The CSV carries
-`has_request`, `implied_start` and `started_before_window`, so the cases can
-be filtered apart.
+So most of this population plausibly comes from the **extract boundary**:
+the start lies before 21:00, where the first events would have arrived.
+The other 25 are unexplained by the data. The 4 with a request are the
+clearest cases of a start absent for another reason (navigation 2819, for
+example, received a single event, serial 1), but even they are observed
+omissions, not proven delivery failures. The CSV carries `has_request`,
+`implied_start` and `started_before_window`, so the cases can be filtered
+apart.
 
 ### 3. Histogram of lost events (`lost_events_histogram`)
 
 **Definition.** `lost_events` from task 1, for **every** navigation,
 including the zero bucket: the share of complete navigations is the
-headline. Duplicates are not losses, trailing losses are invisible.
+headline. Duplicates are not losses, absent tails are invisible.
 
 **Output.** The CSV has exact counts, one row per distinct `lost_events`
 value, with a `navigations_started_before_window` column. The PNG buckets the
-long tail (1, 2, 3-5, ..., 101+), stacks each bucket by window start, and
+long tail (1, 2, 3-5, ..., 101+), splits each bucket into provably before
+the window and not proven before it, and
 states the zero bucket in its title instead of drawing a bar over 100
 times taller than the rest.
 
@@ -227,11 +242,12 @@ times taller than the rest.
 
 ![Lost events per navigation, all devices](results/all/task3_lost_events_histogram.png)
 
-The pre-window part (orange) dominates every bucket from 11 lost events up.
-Inside the window the shape is bimodal. The 97 inner gaps, as runs of
-consecutive missing serials, are mostly a single event (46 runs), but 23
-runs are 12 to 42 serials long. Those look like **whole batches lost**, a
-failed send rather than a dropped event, and need a different fix.
+Navigations that provably started before the window (orange) are the
+majority of every bucket from 11 absent serials up. The rest has two modes.
+Of the 97 inner gaps, counted as runs of consecutive absent serials, 46 are
+a single event, while 23 runs are 12 to 42 serials long. Those look like
+**whole batches missing**, a failed send rather than a dropped event, which
+would need a different fix; the data alone can't confirm the cause.
 
 ### 4. The event a navigation most often ends with (`last_event_types`)
 
@@ -251,7 +267,7 @@ away from search. Ending on a box-change is twice as common on touch devices
 (35-38 %) as on desktop (16 %): presumably a scroll followed by closing the
 tab or switching apps, which leaves no click. The caveat is that this is the
 last *received* event. 155 navigations have their last arrival in the
-window's final minute and may simply be cut off there.
+window's final minute, so their tail may lie past the cut.
 
 ### 5. The most frequent event type (`event_type_frequency`)
 
@@ -294,17 +310,19 @@ has, not which one it has most of.
 ## Data-quality observations
 
 1. **7.5 % of navigations have no request row**, and the window explains
-   only part of it. 143 of the 785 began before 21:00. The other 642 are
-   not provably before the window, and 621 of them even have their serial 0
-   and lose only 19 events in total, yet their request is not in the
-   extract. That points at request loss or an upstream filter on `request`.
+   at most part of it. 143 of the 785 provably started before 21:00. The
+   other 642 are not proven before the window, and 621 of them have their
+   serial 0 and miss only 19 events in total, yet their request is not in
+   the extract. That suggests request loss or an upstream filter on
+   `request`, which the files can't distinguish.
    Because the device comes only from the request, **these navigations are
    invisible to every device-filtered report**. Sending `hwType` with the
    client events would remove that dependency.
-2. **Prefix loss is almost entirely a boundary artefact.** Only 4
-   navigations with a request miss serial 0. Hourly processing will always
-   report false losses at the start of each hour and hide real ones at its
-   end.
+2. **Prefix loss sits mostly at the window start.** 7 297 of the 8 466
+   absent prefix serials belong to navigations that provably started before
+   21:00, and only 4 navigations with a request miss serial 0. Hourly
+   processing is exposed at both ends: starts before the hour look like
+   prefix loss, and tails after it are invisible.
 3. **Duplicates come in bursts.** The 85 duplicated serials sit in 8
    navigations, and the copies are identical apart from `eventTime`. That
    is consistent with a client re-sending a batch whose acknowledgement it
@@ -313,10 +331,11 @@ has, not which one it has most of.
    backwards against `serialId` in 92 % of the navigations. Anything that
    sessionises or orders events must use `serialId` (or `relativeTimeMs`),
    not arrival time.
-5. **Booleans are sent only when true, sometimes.**
+5. **Some booleans are never false.**
    `mouse-down.activeElement` is `true` (10 550) or absent (1 122), never
-   `false`, so it is a presence flag and a reader treating null as "unknown"
-   would be wrong. `box-change.visibility` does carry `false` (91 853) and
+   `false`. It looks like a presence flag, but absence could also mean an
+   older producer or a case where the flag does not apply; reading it needs
+   the producer's contract. `box-change.visibility` does carry `false` (91 853) and
    is absent on 207 rows.
 6. **Partial payloads are normal.** 28 % of box-change rows lack
    `relativePosition` and 32 % lack `relativeSize`, presumably because only
@@ -325,9 +344,9 @@ has, not which one it has most of.
    uses `-1` as a sentinel. A field-completeness monitor has to know which
    absences are by design.
 7. **Navigations live long.** `relativeTimeMs` reaches 41 592 338 ms
-   (11.6 h): tabs left open keep sending box-change events. "Navigation
-   duration" is not engagement, and an hourly extract will cut many
-   navigations at both ends.
+   (11.6 h), presumably tabs left open that keep sending box-change
+   events. "Navigation duration" is not engagement, and an hourly extract
+   can cut a navigation at both ends.
 8. **Traffic falls through the hour**, from 1 157 requests in 21:00-21:05
    to 458 in 21:55-22:00 (late evening in UTC+2). Any alert on absolute
    counts needs a time-of-day baseline.
@@ -338,12 +357,13 @@ Each is a metric to track per hour and per device, alerting on deviation
 from its time-of-day baseline.
 
 * **Share of navigations with inner gaps, and inner-gap events per 1 000
-  received.** Inner gaps do not depend on the extract boundary, so this is
-  the clean delivery-health signal. Phone against desktop (1.3 % against
-  0.6 %) already shows it differs by platform.
+  received.** Inner gaps depend far less on the extract boundary than a
+  missing prefix (a late event can still open one near the window end), so
+  this is the closest thing to a delivery-health signal. Phone against
+  desktop (1.3 % against 0.6 %) already shows it differs by platform.
 * **Inner-gap run lengths.** Track single-event gaps and runs of 10 or
-  more separately. Single gaps point at dropped events, long runs at a lost
-  batch, and the two have different root causes.
+  more separately. Single gaps suggest dropped events, long runs a lost
+  batch, which would have different root causes.
 * **Request coverage.** The share of navigations with client events but no
   request (7.5 % here), and the reverse. It is also the share of traffic
   every device-level dashboard silently misses.
@@ -353,13 +373,15 @@ from its time-of-day baseline.
   p50/p95/p99. It says how late events arrive, which sets the lateness
   allowance a windowed job needs before it closes an hour.
 * **Boundary-aware completeness.** Process hour *H* with a look-back into
-  *H-1*, or only judge navigations whose request falls in the hour and whose
-  last event is older than the lateness allowance. Both the false losses at
-  the start of an hour and the hidden ones at its end then disappear.
+  *H-1* and a look-ahead into *H+1*, or only judge navigations whose request
+  falls in the hour and whose last event is older than a lateness
+  allowance. That separates most start-of-hour cuts and late arrivals from
+  delivery loss. It can't remove the ambiguity: navigations run for hours,
+  and an absent tail stays invisible without an end signal.
 * **An explicit end of navigation.** A final "events sent: N" beacon on page
-  hide makes trailing loss measurable. Until then, watch the share of
+  hide makes an absent tail measurable. Until then, watch the share of
   navigations ending in mouse-down against box-change: a shift towards
-  box-change can mean lost tails as much as changed behaviour.
+  box-change can mean missing tails as much as changed behaviour.
 * **Field completeness and schema drift.** Absence rates per payload field
   against their by-design baseline (observation 6). The loader reads with
   `FAILFAST`, so a format change fails the job instead of becoming nulls.
@@ -437,19 +459,21 @@ These are condensed from the actual session, not verbatim.
   describes the same navigations. It filters event rows, which is safe
   because the device is constant within a navigation.
 * **Unknown-device navigations stay in `all` and get reported.** 785
-  navigations have no request row. Dropping them would hide most of the loss
-  in the data.
+  navigations have no request row. Dropping them would hide most of the
+  absent serials in the data.
 * **Raw data stays out of the repo.** It belongs to the company that set
   the task, and the repo is public.
 * **`serialId` starts at 0.** 10 291 of 10 454 navigations have a serial 0,
-  and it's always the first page render.
+  and every serial-0 row is a page-change carrying the viewport size: the
+  first render.
 * **The request is outside the serial sequence**, and a missing request is
   not part of task 1. It's reported on its own, so `all` and the device runs
   measure the same thing.
-* **A lost event is a missing prefix or an inner gap**:
-  `last serial + 1 - distinct serials received`.
+* **A lost event is an absent serial in the observed range**, a missing
+  prefix or an inner gap: `last serial + 1 - distinct serials received`.
 * **Loss after the last received event can't be detected.** There's no end
-  marker and no counter, so every loss number is a lower bound.
+  marker and no counter, so every loss number is a lower bound on absent
+  events, and none of them says why they're absent.
 * **Duplicates count once and never as loss.** They're re-deliveries with
   identical payloads, reported as their own signal.
 * **The last event is the highest `serialId`.** It's the client's order.
@@ -459,5 +483,6 @@ These are condensed from the actual session, not verbatim.
   dominance pick box-change. Coverage (navigations containing the type)
   picks page-change, because nearly every navigation has its first render;
   both readings are in the output next to the count.
-* **Every navigation is checked against the extract window.** Without that
-  flag, an hourly cut looks like delivery loss.
+* **Every navigation is checked against the extract window.** The flag
+  marks the ones that provably started before it, so an hourly cut is not
+  read as delivery loss. It's reported next to the counts, not subtracted.

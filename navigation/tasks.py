@@ -19,8 +19,9 @@ Facts from a full scan of the data that the definitions rely on
 * A duplicate is a second row with the same ``(navigation, serialId)``: 85
   of them, each with the same type and payload as its original and a later
   ``eventTime`` (0.04-30 s). They are re-deliveries, not new events.
-* The extract is one hour of ``eventTime`` (21:00-22:00 UTC), so
-  navigations that began before 21:00 lost their start to the cut.
+* The extract is one hour of ``eventTime`` (21:00-22:00 UTC), so a
+  navigation that started before 21:00 may miss its start for that reason
+  alone.
 """
 
 from pyspark.sql import DataFrame, Window
@@ -33,21 +34,27 @@ def navigation_summary(events: DataFrame) -> DataFrame:
     * ``first_serial_id`` / ``last_serial_id``: lowest / highest received serial.
     * ``received_events``: distinct serials received; duplicates count once.
     * ``duplicate_events``: copies beyond the first.
-    * ``missing_prefix``: serials ``0 .. first-1``, never received
+    * ``missing_prefix``: serials ``0 .. first-1``, absent from the input
       (= ``first_serial_id``, because sequences start at 0).
     * ``missing_inner``: holes inside ``[first, last]``.
-    * ``lost_events`` = prefix + inner = ``last_serial_id + 1 - received_events``.
-      Events lost *after* the last received serial cannot be seen: the data
-      has no end marker and no "events sent" counter, so this is a lower bound.
+    * ``lost_events`` = prefix + inner = ``last_serial_id + 1 - received_events``:
+      the absent serial positions in the observed range. "Lost" means absent
+      from this input; it does not say whether an event was never sent,
+      dropped, late or outside the extract. Events absent *after* the last
+      received serial cannot be seen: the data has no end marker and no
+      "events sent" counter, so this is a lower bound.
     * ``first_event_type`` / ``last_event_type``: type at the min / max serial.
     * ``implied_start`` / ``started_before_window``: see below.
 
     An event happens ``relativeTimeMs`` after the navigation starts and can
     only arrive after it happens, so ``eventTime - relativeTimeMs`` of any
     event is an upper bound of the navigation's start. If the smallest such
-    bound is before the extract window opens, the navigation provably began
-    before the window, and its missing start was cut off by the extract
-    rather than lost in delivery. The window start is the hour containing the
+    bound is before the extract window opens, the navigation provably
+    started before the window, which makes the extract cut a plausible
+    reason for a missing start (it proves the start, not the cause). A bound
+    after the window start proves nothing: ``False`` means "not proven
+    before the window", since a late arrival pushes the bound later. The
+    window start is the hour containing the
     earliest ``eventTime``: the earliest arrival itself would move by a
     fraction of a second with the device filter and flip borderline
     navigations, while the hour is the same for every filter (the extract is
@@ -87,7 +94,7 @@ def navigation_summary(events: DataFrame) -> DataFrame:
 
 
 def incomplete_navigations(events: DataFrame) -> DataFrame:
-    """Task 1: navigations with at least one detectably lost client event.
+    """Task 1: navigations with at least one absent serial in their observed range.
 
     Incomplete means ``lost_events > 0``: a missing prefix or a hole inside
     the received serial range. A navigation that is merely short is not
@@ -117,8 +124,9 @@ def navigations_not_starting_from_zero(events: DataFrame) -> DataFrame:
     """Task 2: navigations whose lowest received ``serial_id`` is above 0.
 
     Serial 0 exists in the data (the initial ``page-change``), so "from zero"
-    is taken literally. ``started_before_window`` separates navigations whose
-    start lies before the extract from those whose start was really lost.
+    is taken literally. ``started_before_window`` marks the navigations that
+    provably started before the extract; for the others the data does not
+    say why the start is absent.
     """
     return (
         navigation_summary(events)
@@ -137,8 +145,9 @@ def lost_events_histogram(events: DataFrame) -> DataFrame:
 
     ``lost_events`` is the measure of task 1. The zero bucket is included:
     "all navigations" includes the complete ones, and their share is the
-    headline. Each bucket is split by ``started_before_window`` so losses
-    caused by the extract boundary can be told apart from delivery losses.
+    headline. Each bucket is split by ``started_before_window``: navigations
+    that provably started before the extract, where the cut is a plausible
+    cause, against those not proven to.
     """
     return (
         navigation_summary(events)

@@ -38,7 +38,7 @@ def write_json(data: dict, path: Path) -> None:
 
 
 def plot_lost_events_histogram(histogram: pd.DataFrame, device: str, path: Path) -> None:
-    """Stacked bars of navigations per lost-events bucket, split by window start.
+    """Stacked bars of navigations per lost-events bucket, split by the window flag.
 
     The zero bucket is stated in the title instead of drawn: at ~98 % of the
     navigations it would flatten every other bar, and a log axis would
@@ -59,8 +59,8 @@ def plot_lost_events_histogram(histogram: pd.DataFrame, device: str, path: Path)
     ax.set_facecolor(_SURFACE)
     x = range(len(labels))
     bar = dict(width=0.6, edgecolor=_SURFACE, linewidth=2)
-    ax.bar(x, inside, color=_INSIDE, label="started inside the extract window", **bar)
-    ax.bar(x, before, bottom=inside, color=_BEFORE, label="started before the window (start cut off)", **bar)
+    ax.bar(x, inside, color=_INSIDE, label="not proven to start before the window", **bar)
+    ax.bar(x, before, bottom=inside, color=_BEFORE, label="provably started before the window", **bar)
     totals = [a + b for a, b in zip(inside, before)]
     for xi, height in zip(x, totals):
         if height:
@@ -69,7 +69,7 @@ def plot_lost_events_histogram(histogram: pd.DataFrame, device: str, path: Path)
     ax.set_ylim(0, max(totals + [1]) * 1.15)
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     ax.set_xticks(list(x), labels)
-    ax.set_xlabel("lost events per navigation (missing prefix + inner gaps)", color=_MUTED)
+    ax.set_xlabel("absent serials per navigation (missing prefix + inner gaps)", color=_MUTED)
     ax.set_ylabel("navigations", color=_MUTED)
     ax.tick_params(colors=_MUTED)
     ax.spines[["top", "right"]].set_visible(False)
@@ -77,7 +77,7 @@ def plot_lost_events_histogram(histogram: pd.DataFrame, device: str, path: Path)
     ax.set_axisbelow(True)
     share = complete / total if total else 0.0
     ax.set_title(
-        f"Lost events per navigation, device = {device}\n"
+        f"Lost events (absent serials) per navigation, device = {device}\n"
         f"{total} navigations; {complete} ({share:.1%}) lost none and are not drawn",
         loc="left", color=_TEXT, fontsize=11, pad=24,
     )

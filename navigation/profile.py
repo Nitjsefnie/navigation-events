@@ -127,7 +127,7 @@ def profile(spark: SparkSession, data_dir: str) -> dict:
         F.sum(F.col("arrival_back").cast("long")).alias("event_time_decreases"),
         F.count_distinct(F.when(F.col("arrival_back"), F.col("navigation"))).alias("navigations_with_event_time_decrease"),
     ).first().asDict()
-    # Inner gaps as runs of consecutive missing serials: single drops vs lost batches.
+    # Inner gaps as runs of consecutive absent serials: single events vs whole batches.
     out["inner_gap_runs_by_length"] = _counts(steps.filter("gap_run > 0"), "gap_run")
 
     # Last event: does the choice of ordering change the answer to task 4?
@@ -168,8 +168,9 @@ def profile(spark: SparkSession, data_dir: str) -> dict:
     quantiles = summary.join(requests, "navigation").agg(
         F.percentile_approx(lead_ms, [0.01, 0.5, 0.99], 10000).alias("q")).first()["q"]
     out["request_time_minus_implied_start_ms"] = dict(zip(["p01", "p50", "p99"], quantiles))
-    # Navigations whose last arrival is in the window's final minute may have
-    # lost their tail to the cut at the end, which no serial check can see.
+    # Navigations whose last arrival is in the window's final minute are
+    # exposed to the cut at the end: an absent tail there is invisible to
+    # any serial check.
     window_end = F.date_trunc("hour", F.min("event_time")) + F.expr("INTERVAL 1 HOUR")
     end = events.agg(window_end.alias("end")).first()["end"]
     out["navigations_last_arrival_in_final_minute"] = (
