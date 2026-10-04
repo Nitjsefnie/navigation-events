@@ -411,9 +411,12 @@ from its time-of-day baseline.
   as null. `check_required_fields` fails the run when a client event lacks
   `navigation`, `serialId`, `relativeTimeMs` or `eventTime`, or has a
   negative serial or relative time. Failing rather than dropping is
-  deliberate: a dropped row would create the very gap the job measures. The
-  check runs on the cached events, so it costs no extra pass over the
-  files.
+  deliberate: a dropped row would create the very gap the job measures.
+  The check runs on all loaded events *before* the device filter, whatever
+  `--device` is: a row whose navigation key went missing matches no
+  request, so a phone filter would otherwise drop it silently. It reads the
+  cached events, so it adds one small aggregation but no extra pass over
+  the files.
 * **Narrow union**: the four client streams are projected to their shared
   columns before `unionByName`, so no mostly-null payload columns travel
   through the shuffles.
@@ -423,7 +426,8 @@ from its time-of-day baseline.
   `partitionBy("navigation")` window (task 5) and a broadcast one-row cross
   join for the window start cover every task. The only unpartitioned windows
   rank a four-row result.
-* **The filtered events are cached once per run**: five tasks read them.
+* **The loaded events are cached once per run**: the check and, through the
+  device filter, all five tasks read them.
   The per-navigation summary is not: tasks 1-4 and the run summary each
   rebuild it from the cached events, five small aggregations over 389k
   rows. That keeps every task a plain function of the events. On large data
@@ -488,9 +492,10 @@ These are condensed from the actual session, not verbatim.
   absent serials in the data.
 * **Raw data stays out of the repo.** It belongs to the company that set
   the task, and the repo is public.
-* **Broken input fails the run.** A client event without its navigation,
-  serial or times, or with a negative serial, stops the job. Dropping it
-  would create the very gap the job measures.
+* **Broken input fails the run, for every device.** A client event without
+  its navigation, serial or times, or with a negative serial, stops the
+  job, checked before the device filter. Dropping it would create the very
+  gap the job measures.
 * **Conflicting device data means unknown.** If requests disagreed on a
   navigation's device, input order would pick one. None do here.
 * **`serialId` starts at 0.** 10 291 of 10 454 navigations have a serial 0,

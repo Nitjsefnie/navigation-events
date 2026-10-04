@@ -66,13 +66,16 @@ def run(spark: SparkSession, data_dir: str, device: str, out_dir: str) -> dict:
     """Load, filter once by device, run the five tasks and write their outputs."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    # The filtered events feed every task; caching them means the bzip2
-    # files are decompressed and parsed once per run instead of once per task.
-    events = filter_by_device(load_events(spark, data_dir), device).cache()
+    # Caching the loaded events means the bzip2 files are decompressed and
+    # parsed once per run instead of once per task; the device filter then
+    # reads from the cache.
+    all_events = load_events(spark, data_dir).cache()
     try:
-        # Checked on the cached population the tasks read, so it costs no
-        # extra pass over the bzip2 files.
-        check_required_fields(events)
+        # Validate before the device filter: a row whose navigation key went
+        # missing matches no request, so a concrete-device filter would drop
+        # it silently and the run would report its absence as a gap.
+        check_required_fields(all_events)
+        events = filter_by_device(all_events, device)
         results = {name: output.write_csv(task(events), out / f"{name}.csv") for name, task in TASKS.items()}
         output.plot_lost_events_histogram(
             results["task3_lost_events_histogram"], device, out / "task3_lost_events_histogram.png"
@@ -80,7 +83,7 @@ def run(spark: SparkSession, data_dir: str, device: str, out_dir: str) -> dict:
         summary = _summary(events, results, device)
         output.write_json(summary, out / "summary.json")
     finally:
-        events.unpersist()
+        all_events.unpersist()
     return summary
 
 

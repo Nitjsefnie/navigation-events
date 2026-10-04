@@ -61,6 +61,15 @@ def test_cli_rejects_an_unknown_device():
     assert error.value.code == 2
 
 
+@pytest.mark.parametrize("device", ["all", "phone"])
+def test_run_fails_on_a_missing_navigation_for_every_device(spark, write_sources, source_rows, tmp_path, device):
+    # Serial 0 of the phone navigation loses its join key. It matches no
+    # request, so a phone filter alone would drop it and report a gap.
+    del source_rows["page-change"][0]["navigation"]
+    with pytest.raises(ValueError, match="navigation"):
+        run(spark, write_sources(source_rows), device, str(tmp_path / "out"))
+
+
 def test_run_fails_on_an_invalid_event(spark, write_sources, source_rows, tmp_path):
     source_rows["box-change"][0]["serialId"] = -1
     with pytest.raises(ValueError, match="serialId"):
