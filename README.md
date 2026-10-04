@@ -40,7 +40,7 @@ have any.
 
 ```sh
 uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64   # Spark 4 runs on Java 17/21, not 25
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64   # Java 21 is the tested environment
 
 # all five tasks for one device setting, written to results/<device>/
 .venv/bin/python -m navigation --data-dir data --device all --out results/all
@@ -370,10 +370,16 @@ from its time-of-day baseline.
   request (7.5 % here), and the reverse. It is also the share of traffic
   every device-level dashboard silently misses.
 * **Duplicate rate and the delay of the copy.** A rising rate means clients
-  retry more, usually because the collector acknowledges slowly or fails.
-* **Delivery latency**, `eventTime - (request time + relativeTimeMs)` at
-  p50/p95/p99. It says how late events arrive, which sets the lateness
-  allowance a windowed job needs before it closes an hour.
+  re-send more; a slow or failing collector acknowledgement is the first
+  suspect.
+* **Request-relative timing residual**, `eventTime - (request time +
+  relativeTimeMs)` at p1/p50/p99. It is not delivery latency: the request
+  time is a server arrival, not the navigation's start, so the residual
+  mixes an unknown origin offset with delay, and it goes negative (for the
+  earliest-bounded event it is -27 ms at the median). Its drift is still
+  worth watching. A producer-side start or send timestamp would turn it into
+  real latency, which is what a lateness allowance for a windowed job
+  should be set from.
 * **Boundary-aware completeness.** Process hour *H* with a look-back into
   *H-1* and a look-ahead into *H+1*, or only judge navigations whose request
   falls in the hour and whose last event is older than a lateness
@@ -418,11 +424,19 @@ from its time-of-day baseline.
   join for the window start cover every task. The only unpartitioned windows
   rank a four-row result.
 * **The filtered events are cached once per run**: five tasks read them.
-* **Results reach the driver only as small aggregates** (`toPandas` of at
-  most a few hundred rows) to be written as single files. A production job
-  with large outputs would use `DataFrame.write`.
+  The per-navigation summary is not: tasks 1-4 and the run summary each
+  rebuild it from the cached events, five small aggregations over 389k
+  rows. That keeps every task a plain function of the events. On large data
+  I'd cache `navigation_summary` once in the CLI and derive the four
+  results from it.
+* **Only small results reach the driver** (`toPandas` of at
+  most a few hundred rows) to be written as single files. The task 1 and 2
+  lists are collected whole (255 and 163 rows here); a production job with
+  large outputs would use `DataFrame.write`.
 * **Shuffle partitions stay at the default**: adaptive query execution
-  coalesces them for this data size, and the same code then scales unchanged.
+  coalesces them for this data size. The transformations need no change on
+  a cluster; the CLI's `local[*]` master and its driver-side file writes
+  would.
 
 ## How this was built
 
@@ -462,8 +476,8 @@ These are condensed from the actual session, not verbatim.
 
 ### Decisions I made
 
-* **PySpark, not plain SQL or pandas.** It's what the task asked for and
-  works in, and the code reads as a job that scales past one machine.
+* **PySpark, not plain SQL or pandas.** It's what the task asked for, and
+  the transformations carry over to a cluster unchanged.
 * **All five tasks.** They share one per-navigation summary, so the fifth
   cost little.
 * **One device filter, applied before every task.** Every output of a run

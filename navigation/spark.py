@@ -14,8 +14,8 @@ def get_spark(app_name: str = "navigation-monitoring", master: str = "local[*]")
       of the machine running the job.
     * Shuffle partitions stay at the default on purpose: adaptive query
       execution (on by default since Spark 3.2) coalesces the 200 post-shuffle
-      partitions to a handful for ~400k rows, and the same code then runs
-      unchanged on a cluster.
+      partitions to a handful for ~400k rows, and the transformations need
+      no tuning change on a cluster (the ``local[*]`` master does).
     * Arrow is off: only small aggregated results reach pandas, so the
       ``pyarrow`` dependency would buy nothing.
     """
