@@ -258,10 +258,10 @@ window's final minute and may simply be cut off there.
 **Definition.** Event types ranked by the number of events, where an event
 is a distinct `(navigation, serialId)`, so re-deliveries count once. Two
 navigation-level readings of "most frequent in navigations" are extra
-columns and give the same winner: in how many navigations the type occurs,
-and in how many it is the most frequent type (a tie credits every tied
-type). The request is not counted: it is outside the client stream and
-occurs once per navigation, so it could never lead.
+columns: in how many navigations the type is the most frequent one (a tie
+credits every tied type), and in how many it occurs at all. The request is
+not counted: it is outside the client stream and occurs once per
+navigation, so it could never lead.
 
 | type | events (all) | share all | phone | desktop | tablet | most frequent type in (all) |
 |---|---:|---:|---:|---:|---:|---:|
@@ -270,9 +270,26 @@ occurs once per navigation, so it could never lead.
 | box-create | 32 457 | 8.3 % | 9.0 % | 6.5 % | 10.1 % | 177 |
 | mouse-down | 11 665 | 3.0 % | 3.0 % | 3.1 % | 2.5 % | 81 |
 
-box-change (a tracked result box changing position, size or visibility
-while the user scrolls) leads in every reading and on every device, at about
-29 per navigation. It is the volume driver of the whole pipeline.
+By event volume and by per-navigation dominance, box-change wins on every
+device (most frequent type in 4 412 phone, 4 415 desktop and 373 tablet
+navigations). box-change is a tracked result box changing position, size
+or visibility while the user scrolls, at about 29 per navigation: the
+volume driver of the whole pipeline.
+
+**Coverage gives a different answer.** Counted by the navigations a type
+occurs in at all, page-change wins, because almost every navigation has
+its serial-0 render:
+
+| navigations containing the type | all | phone | desktop | tablet |
+|---|---:|---:|---:|---:|
+| **page-change** | **10 344** | **4 688** | **4 584** | **394** |
+| box-change | 9 986 | 4 501 | 4 431 | 376 |
+| box-create | 8 233 | 3 249 | 4 154 | 287 |
+| mouse-down | 8 111 | 3 655 | 3 736 | 312 |
+
+The headline stays event volume, the reading that matches "the most
+frequent event type": coverage says which type nearly every navigation
+has, not which one it has most of.
 
 ## Data-quality observations
 
@@ -438,7 +455,9 @@ These are condensed from the actual session, not verbatim.
 * **The last event is the highest `serialId`.** It's the client's order.
   `relativeTimeMs` agrees but ties, and `eventTime` is arrival order, which
   changes the answer in 1 336 navigations.
-* **Frequency is the deduplicated event count**, with two per-navigation
-  readings next to it. All three pick box-change.
+* **Frequency is the deduplicated event count.** It and per-navigation
+  dominance pick box-change. Coverage (navigations containing the type)
+  picks page-change, because nearly every navigation has its first render;
+  both readings are in the output next to the count.
 * **Every navigation is checked against the extract window.** Without that
   flag, an hourly cut looks like delivery loss.

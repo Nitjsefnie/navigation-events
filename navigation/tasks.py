@@ -190,11 +190,14 @@ def event_type_frequency(events: DataFrame) -> DataFrame:
 
     An event is a distinct ``(navigation, serial_id)``, so a re-delivery is
     counted once. Two navigation-level readings of "most frequent in
-    navigations" are added as columns and give the same winner:
+    navigations" are added as columns:
 
-    * ``navigations_with_type``: navigations containing the type at all;
     * ``navigations_where_most_frequent``: navigations in which the type is
-      the most frequent one (a tie credits every tied type).
+      the most frequent one (a tie credits every tied type). It picks the
+      same winner as the event count, box-change;
+    * ``navigations_with_type``: navigations containing the type at all.
+      It picks a different winner, page-change, because nearly every
+      navigation has its serial-0 render.
 
     The request is not counted: it is not part of the client stream and
     occurs once per navigation, so it could never lead.
