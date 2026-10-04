@@ -1,0 +1,18 @@
+# Deny by default; name back what the repository ships.
+*
+!.gitignore
+!README.md
+!pyproject.toml
+!requirements.txt
+!navigation/
+navigation/*
+!navigation/*.py
+!tests/
+tests/*
+!tests/*.py
+!results/
+results/*
+!results/*.csv
+!results/*.json
+!results/*.png
+!results/*.md
