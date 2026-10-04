@@ -90,14 +90,17 @@ def attach_device(events: DataFrame, requests: DataFrame) -> DataFrame:
     they count under ``--device all`` and under no concrete device, because
     their device cannot be known.
 
-    The request side is one small row per navigation, so it is broadcast and
-    the much larger events side is not shuffled for the join. Requests are
-    deduplicated on ``navigation`` first so a re-delivered request could
-    never multiply events (none is duplicated in this extract).
+    The request side is reduced to one small row per navigation, so it is
+    broadcast and the much larger events side is not shuffled for the join.
+    Reducing it first means a re-delivered request can never multiply
+    events. Requests that disagree on the device leave it ``"unknown"``
+    (with ``has_request`` true): picking one would depend on input order and
+    could move a whole navigation between device reports. This extract has
+    one request per navigation, so neither case occurs here.
     """
-    devices = (
-        requests.select("navigation", "hw_type", F.lit(True).alias("has_request"))
-        .dropDuplicates(["navigation"])
+    devices = requests.groupBy("navigation").agg(
+        F.when(F.count_distinct("hw_type") == 1, F.min("hw_type")).alias("hw_type"),
+        F.lit(True).alias("has_request"),
     )
     return (
         events.join(F.broadcast(devices), on="navigation", how="left")

@@ -72,9 +72,10 @@ def navigation_summary(events: DataFrame) -> DataFrame:
         F.count_distinct("serial_id").alias("received_events"),
         (F.count(F.lit(1)) - F.count_distinct("serial_id")).alias("duplicate_events"),
         # min_by/max_by take the type at the extreme serial in the same
-        # aggregation, without a window or a self-join. A re-delivered serial
-        # has the same type as its original, so duplicates cannot make the
-        # choice ambiguous.
+        # aggregation, without a window or a self-join. This relies on a
+        # re-delivered serial having the same type as its original, which
+        # holds for all 85 duplicates here (data profile); a serial with two
+        # types would make the choice arbitrary.
         F.min_by("event_type", "serial_id").alias("first_event_type"),
         F.max_by("event_type", "serial_id").alias("last_event_type"),
         F.timestamp_micros(F.min(implied_start_us)).alias("implied_start"),

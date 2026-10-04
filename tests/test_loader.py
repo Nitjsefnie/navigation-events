@@ -49,6 +49,15 @@ def test_repeated_request_rows_do_not_multiply_events(spark):
     assert (attached[(2, 0)]["hw_type"], attached[(2, 0)]["has_request"]) == ("unknown", False)
 
 
+def test_requests_disagreeing_on_the_device_leave_it_unknown(spark):
+    events = spark.createDataFrame([(1, 0), (2, 0)], "navigation long, serial_id long")
+    requests = spark.createDataFrame(
+        [(1, "phone"), (1, "desktop"), (2, "tablet")], "navigation long, hw_type string"
+    )
+    attached = {r["navigation"]: (r["hw_type"], r["has_request"]) for r in attach_device(events, requests).collect()}
+    assert attached == {1: ("unknown", True), 2: ("tablet", True)}
+
+
 def test_record_not_matching_the_schema_fails_the_job(spark, write_sources, source_rows):
     source_rows["mouse-down"][0]["serialId"] = "not-a-number"
     events = load_events(spark, write_sources(source_rows))

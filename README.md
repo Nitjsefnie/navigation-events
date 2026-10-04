@@ -145,7 +145,9 @@ request side is small and broadcast. **785 navigations (7.5 %, 23 568
 events) have client events but no request row.** An inner join would drop
 them silently, together with most of the absent serials in the data. They are kept
 with `hw_type = "unknown"`: they count under `--device all` and under no
-concrete device. No request lacks client events.
+concrete device. No request lacks client events. Requests that disagreed on
+the device would leave it unknown too, rather than letting input order pick
+one; this extract has exactly one request per navigation.
 
 **Which navigations started before the window?** An event happens
 `relativeTimeMs` after its navigation starts and can only arrive after it
