@@ -1,0 +1,22 @@
+{
+  "device": "phone",
+  "navigations": 4690,
+  "navigations_without_request": 0,
+  "incomplete_navigations": 61,
+  "incomplete_started_before_window": 0,
+  "not_starting_from_zero": 3,
+  "not_starting_from_zero_started_before_window": 0,
+  "lost_events": 360,
+  "lost_in_prefix": 97,
+  "lost_in_inner_gaps": 263,
+  "lost_in_navigations_started_before_window": 0,
+  "max_lost_in_one_navigation": 77,
+  "navigations_with_duplicates": 7,
+  "duplicate_events": 71,
+  "most_common_last_event_type": [
+    "mouse-down"
+  ],
+  "most_frequent_event_type": [
+    "box-change"
+  ]
+}

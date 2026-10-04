@@ -1,0 +1,22 @@
+{
+  "device": "tablet",
+  "navigations": 394,
+  "navigations_without_request": 0,
+  "incomplete_navigations": 5,
+  "incomplete_started_before_window": 0,
+  "not_starting_from_zero": 0,
+  "not_starting_from_zero_started_before_window": 0,
+  "lost_events": 42,
+  "lost_in_prefix": 0,
+  "lost_in_inner_gaps": 42,
+  "lost_in_navigations_started_before_window": 0,
+  "max_lost_in_one_navigation": 19,
+  "navigations_with_duplicates": 1,
+  "duplicate_events": 14,
+  "most_common_last_event_type": [
+    "mouse-down"
+  ],
+  "most_frequent_event_type": [
+    "box-change"
+  ]
+}

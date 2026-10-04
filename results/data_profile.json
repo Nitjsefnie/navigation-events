@@ -1,0 +1,219 @@
+{
+  "files": {
+    "request": {
+      "rows": 9669,
+      "absent": {}
+    },
+    "page-change": {
+      "rows": 40584,
+      "absent": {
+        "clientSize.height": 28644,
+        "clientSize.width": 28644,
+        "relativeLayoutSize.height": 10289,
+        "relativeLayoutSize.width": 10289
+      }
+    },
+    "box-create": {
+      "rows": 32461,
+      "absent": {}
+    },
+    "box-change": {
+      "rows": 304700,
+      "absent": {
+        "relativePosition.x": 86329,
+        "relativePosition.y": 86329,
+        "relativeSize.height": 98048,
+        "relativeSize.width": 98048,
+        "visibility": 207
+      }
+    },
+    "mouse-down": {
+      "rows": 11672,
+      "absent": {
+        "activeElement": 1122
+      }
+    }
+  },
+  "duplicates_within_file": {
+    "page-change": {
+      "repeated_serials": 8,
+      "navigations": 2,
+      "max_distinct_payloads": 1,
+      "min_arrival_spread_s": 10.665868,
+      "max_arrival_spread_s": 16.262458
+    },
+    "box-create": {
+      "repeated_serials": 4,
+      "navigations": 4,
+      "max_distinct_payloads": 1,
+      "min_arrival_spread_s": 0.303536,
+      "max_arrival_spread_s": 30.147876
+    },
+    "box-change": {
+      "repeated_serials": 66,
+      "navigations": 4,
+      "max_distinct_payloads": 1,
+      "min_arrival_spread_s": 0.23514,
+      "max_arrival_spread_s": 30.147876
+    },
+    "mouse-down": {
+      "repeated_serials": 7,
+      "navigations": 6,
+      "max_distinct_payloads": 1,
+      "min_arrival_spread_s": 0.03657,
+      "max_arrival_spread_s": 8.886308
+    }
+  },
+  "boolean_values": {
+    "box-create.checkVisibility": {
+      "checkVisibility=False": 103,
+      "checkVisibility=True": 32358
+    },
+    "box-change.visibility": {
+      "visibility=None": 207,
+      "visibility=False": 91853,
+      "visibility=True": 212640
+    },
+    "mouse-down.activeElement": {
+      "activeElement=None": 1122,
+      "activeElement=True": 10550
+    }
+  },
+  "page_change_size_fields": {
+    "serial_0=False, has_clientSize=False": 28644,
+    "serial_0=False, has_clientSize=True": 1647,
+    "serial_0=True, has_clientSize=True": 10293
+  },
+  "time_range_utc": {
+    "request": {
+      "min": "2022-05-11 21:00:00.933531",
+      "max": "2022-05-11 21:59:58.817144"
+    },
+    "client_events": {
+      "min": "2022-05-11 21:00:00.007647",
+      "max": "2022-05-11 21:59:59.88087"
+    }
+  },
+  "requests_per_5_minutes": {
+    "from=21:00": 1157,
+    "from=21:05": 1087,
+    "from=21:10": 902,
+    "from=21:15": 998,
+    "from=21:20": 955,
+    "from=21:25": 872,
+    "from=21:30": 743,
+    "from=21:35": 665,
+    "from=21:40": 619,
+    "from=21:45": 616,
+    "from=21:50": 597,
+    "from=21:55": 458
+  },
+  "hw_type": {
+    "hw_type=desktop": 4585,
+    "hw_type=phone": 4690,
+    "hw_type=tablet": 394
+  },
+  "navigations": {
+    "with_client_events": 10454,
+    "with_request": 9669,
+    "client_events_but_no_request": 785,
+    "request_but_no_client_events": 0,
+    "request_rows_beyond_one_per_navigation": 0
+  },
+  "navigations_by_first_serial_id": {
+    "first_serial_id=0": 10291,
+    "first_serial_id=1": 7,
+    "first_serial_id=2": 3,
+    "first_serial_id=3": 1,
+    "first_serial_id=5": 1,
+    "first_serial_id=8": 1,
+    "first_serial_id=9": 1,
+    "first_serial_id=11": 1,
+    "first_serial_id=12": 1,
+    "first_serial_id=13": 2
+  },
+  "navigations_by_first_serial_id_above_9": 149,
+  "serial_0_rows_by_event_type": {
+    "event_type=page-change": 10293
+  },
+  "ordering_against_serial_id": {
+    "relative_time_decreases": 0,
+    "event_time_decreases": 21813,
+    "navigations_with_event_time_decrease": 9606
+  },
+  "inner_gap_runs_by_length": {
+    "gap_run=1": 46,
+    "gap_run=2": 10,
+    "gap_run=3": 8,
+    "gap_run=4": 6,
+    "gap_run=6": 2,
+    "gap_run=7": 1,
+    "gap_run=8": 1,
+    "gap_run=12": 2,
+    "gap_run=13": 3,
+    "gap_run=14": 2,
+    "gap_run=15": 1,
+    "gap_run=18": 3,
+    "gap_run=19": 1,
+    "gap_run=20": 4,
+    "gap_run=21": 1,
+    "gap_run=23": 1,
+    "gap_run=24": 2,
+    "gap_run=25": 1,
+    "gap_run=27": 1,
+    "gap_run=42": 1
+  },
+  "last_event": {
+    "by_serial_id": {
+      "type_by_serial_id=box-change": 2815,
+      "type_by_serial_id=box-create": 77,
+      "type_by_serial_id=mouse-down": 6691,
+      "type_by_serial_id=page-change": 871
+    },
+    "by_event_time": {
+      "type_by_event_time=box-change": 1829,
+      "type_by_event_time=box-create": 116,
+      "type_by_event_time=mouse-down": 6446,
+      "type_by_event_time=page-change": 2063
+    },
+    "navigations_where_event_time_picks_another_type": 1336,
+    "navigations_tied_at_max_relative_time": 1061,
+    "of_which_between_two_types": 5
+  },
+  "window_boundary": {
+    "has_request=False, started_before_window=False, has_serial_0=False": {
+      "navigations": 21,
+      "lost_events": 1051
+    },
+    "has_request=False, started_before_window=False, has_serial_0=True": {
+      "navigations": 621,
+      "lost_events": 19
+    },
+    "has_request=False, started_before_window=True, has_serial_0=False": {
+      "navigations": 138,
+      "lost_events": 7299
+    },
+    "has_request=False, started_before_window=True, has_serial_0=True": {
+      "navigations": 5,
+      "lost_events": 0
+    },
+    "has_request=True, started_before_window=False, has_serial_0=False": {
+      "navigations": 4,
+      "lost_events": 118
+    },
+    "has_request=True, started_before_window=False, has_serial_0=True": {
+      "navigations": 9664,
+      "lost_events": 565
+    },
+    "has_request=True, started_before_window=True, has_serial_0=True": {
+      "navigations": 1,
+      "lost_events": 0
+    }
+  },
+  "request_time_minus_implied_start_ms": {
+    "p01": -966574.459,
+    "p50": 26.586,
+    "p99": 2073.788
+  },
+  "navigations_last_arrival_in_final_minute": 155
+}

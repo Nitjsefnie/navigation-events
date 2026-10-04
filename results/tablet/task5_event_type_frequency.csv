@@ -1,0 +1,5 @@
+event_type,events,navigations_with_type,navigations_where_most_frequent,share_of_events,rank
+box-change,14507,376,373,0.8026,1
+box-create,1825,287,4,0.101,2
+page-change,1284,394,16,0.071,3
+mouse-down,458,312,4,0.0253,4

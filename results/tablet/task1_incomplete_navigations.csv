@@ -1,0 +1,6 @@
+navigation,hw_type,has_request,first_serial_id,last_serial_id,received_events,missing_prefix,missing_inner,lost_events,duplicate_events,started_before_window
+2892,tablet,True,0,20,2,0,19,19,0,False
+5868,tablet,True,0,24,7,0,18,18,0,False
+8762,tablet,True,0,3,2,0,2,2,0,False
+9233,tablet,True,0,142,142,0,1,1,0,False
+10447,tablet,True,0,3,2,0,2,2,0,False

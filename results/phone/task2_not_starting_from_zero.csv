@@ -1,0 +1,4 @@
+navigation,hw_type,has_request,first_serial_id,first_event_type,received_events,implied_start,started_before_window
+2819,phone,True,1,page-change,1,2022-05-11 21:15:07.868905,False
+4865,phone,True,19,box-change,16,2022-05-11 21:34:41.569526,False
+5486,phone,True,77,box-change,13,2022-05-11 21:16:38.630929,False
