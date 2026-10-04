@@ -488,6 +488,11 @@ These are condensed from the actual session, not verbatim.
   absent serials in the data.
 * **Raw data stays out of the repo.** It belongs to the company that set
   the task, and the repo is public.
+* **Broken input fails the run.** A client event without its navigation,
+  serial or times, or with a negative serial, stops the job. Dropping it
+  would create the very gap the job measures.
+* **Conflicting device data means unknown.** If requests disagreed on a
+  navigation's device, input order would pick one. None do here.
 * **`serialId` starts at 0.** 10 291 of 10 454 navigations have a serial 0,
   and every serial-0 row is a page-change carrying the viewport size: the
   first render.
