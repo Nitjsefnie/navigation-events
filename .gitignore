@@ -23,3 +23,9 @@ results/*/*
 !results/*/*.csv
 !results/*/*.json
 !results/*/*.png
+# CI workflows: re-open .github/ and its workflows/ directory, name the files back.
+!.github/
+.github/*
+!.github/workflows/
+.github/workflows/*
+!.github/workflows/*.yml

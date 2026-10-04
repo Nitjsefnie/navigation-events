@@ -53,6 +53,9 @@ export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64   # Java 21 is the tested en
 .venv/bin/python -m pytest -q
 ```
 
+CI (`.github/workflows/ci.yml`) runs the same tests on every push and pull
+request, on Java 21 and Python 3.14; they need no raw data.
+
 Each `results/<device>/` holds:
 
 | File | Content |
