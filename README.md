@@ -461,31 +461,20 @@ can follow every decision from the source.
 
 These are condensed from the actual session, not verbatim.
 
-1. "Here's the take-home. Before writing any code, explore the data
-   yourself: all keys per file, null rates, the minimum serialId per
-   navigation, duplicate (navigation, serialId) pairs, navigations missing
-   from request and the other way round, eventTime against relativeTimeMs.
-   Don't trust the description, it's incomplete."
-2. "Solve all five tasks in PySpark. A loader with explicit schemas that
-   unions the four client files into one events DataFrame with an event_type
-   column and attaches hw_type from request. One function per task, and one
-   device filter (all, phone, desktop, tablet) applied before every task.
-   Write it like it runs on a cluster: no collect of whole tables, no Python
-   UDFs."
-3. "Every definition comes from the data and gets justified. Does serialId
-   start at 0 or 1, is request part of the sequence, what's a lost event,
-   can loss at the end even be seen, how do duplicates count, which ordering
-   defines the last event and does it change the answer."
-4. "Tests in pytest on small hand-built DataFrames. Pin every definition:
-   gaps, prefix loss, duplicates, ties, the device filter, navigations
-   without a request row. A test has to fail if the definition changes."
-5. "A CLI that runs everything for one device and writes a CSV per task
-   plus a PNG histogram. Commit results for all, phone, desktop and tablet.
-   The raw data stays out of the repo, it isn't ours."
-6. "README: how to run, the definition, evidence and result of each task
-   split by device, the data-quality findings and ideas for more monitoring.
-   Comments explain why, not what. The readers are data engineers who'll go
-   through the code."
+1. "Look at the data before you write anything. The description's
+   incomplete, don't trust it."
+2. "All five tasks, in Spark. One device filter, and every task goes
+   through it."
+3. "Every definition comes from the data. No evidence, no definition."
+4. "The five tasks aren't the finish line. What else is this data hiding?
+   Be ambitious."
+5. "Are those lost events actually lost? Prove it, or say you can't."
+6. "Tests should break the moment a definition changes. Passing isn't the
+   point."
+7. "Results per device go in the repo. The raw data stays out, it isn't
+   ours."
+8. "The README's for data engineers who'll read the code. No claim
+   stronger than the evidence behind it."
 
 ### Decisions I made
 
