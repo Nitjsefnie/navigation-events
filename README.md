@@ -456,8 +456,8 @@ from its time-of-day baseline.
 
 ## How this was built
 
-I built this with an AI coding assistant (Claude). I set the direction,
-made the calls below and reviewed the result. The code is commented so you
+I built this with Claude Code. I set the direction, made the calls below
+and reviewed the result. The code is commented so you
 can follow every decision from the source.
 
 ### Prompts (condensed)
@@ -478,6 +478,19 @@ These are condensed from the actual session, not verbatim.
    ours."
 8. "The README's for data engineers who'll read the code. No claim
    stronger than the evidence behind it."
+
+### Skills used
+
+* **superpowers:test-driven-development.** Tests came first, and every
+  definition is pinned by a test that fails when the definition changes. I
+  checked that by mutating each definition.
+* **superpowers:subagent-driven-development.** An implementer agent built
+  it, an independent code-review agent checked it (recomputed every number,
+  tried definition mutations), then fix rounds until the checks passed.
+* **superpowers:verification-before-completion.** Nothing counted as done
+  until the tests passed and a full re-run reproduced `results/` byte for
+  byte.
+* **dataviz.** The loss histogram.
 
 ### Decisions I made
 
