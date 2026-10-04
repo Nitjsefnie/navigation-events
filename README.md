@@ -213,10 +213,12 @@ unknown 159.
 
 So most of this population plausibly comes from the **extract boundary**:
 the start lies before 21:00, where the first events would have arrived.
-The other 25 are unexplained by the data. The 4 with a request are the
-clearest cases of a start absent for another reason (navigation 2819, for
-example, received a single event, serial 1), but even they are observed
-omissions, not proven delivery failures. The CSV carries `has_request`,
+For the other 25 the cause is undetermined, and that includes the 4 with
+a request: a retained request does not rule out the cut, because serial 0
+can arrive before 21:00 while the request arrives after it. Those 4 are
+the best candidates to investigate (navigation 2819, for example, received
+a single event, serial 1), but they are observed omissions, not proven
+delivery failures. The CSV carries `has_request`,
 `implied_start` and `started_before_window`, so the cases can be filtered
 apart.
 
@@ -311,20 +313,22 @@ has, not which one it has most of.
 
 ## Data-quality observations
 
-1. **7.5 % of navigations have no request row**, and the window explains
-   at most part of it. 143 of the 785 provably started before 21:00. The
-   other 642 are not proven before the window, and 621 of them have their
-   serial 0 and miss only 19 events in total, yet their request is not in
-   the extract. That suggests request loss or an upstream filter on
-   `request`, which the files can't distinguish.
+1. **7.5 % of navigations have no request row.** 143 of the 785 provably
+   started before 21:00; for the other 642 the cause is undetermined. 621
+   of them have their serial 0 and miss only 19 events in total, yet their
+   request is not in the extract. The cut can't be ruled out even there (a
+   request that arrives just before 21:00 is cut while serial 0, arriving
+   later, is kept and bounds the start after 21:00), and request loss or an
+   upstream filter on `request` are the other candidates. The files can't
+   tell them apart.
    Because the device comes only from the request, **these navigations are
    invisible to every device-filtered report**. Sending `hwType` with the
    client events would remove that dependency.
 2. **Prefix loss sits mostly at the window start.** 7 297 of the 8 466
    absent prefix serials belong to navigations that provably started before
    21:00, and only 4 navigations with a request miss serial 0. Hourly
-   processing is exposed at both ends: starts before the hour look like
-   prefix loss, and tails after it are invisible.
+   processing is exposed at both ends: a start before the hour can appear
+   as prefix loss, and a tail after it is invisible.
 3. **Duplicates come in bursts.** The 85 duplicated serials sit in 8
    navigations, and the copies are identical apart from `eventTime`. That
    is consistent with a client re-sending a batch whose acknowledgement it
@@ -377,15 +381,20 @@ from its time-of-day baseline.
   time is a server arrival, not the navigation's start, so the residual
   mixes an unknown origin offset with delay, and it goes negative (for the
   earliest-bounded event it is -27 ms at the median). Its drift is still
-  worth watching. A producer-side start or send timestamp would turn it into
-  real latency, which is what a lateness allowance for a windowed job
-  should be set from.
+  worth watching. Real latency needs a producer timestamp on a clock
+  synchronised with the collector, or one whose offset is estimated and
+  bounded; a producer clock ten seconds fast would otherwise make a 200 ms
+  delivery read as -9.8 s. It also matters which timestamp: event time to
+  arrival includes client buffering before the send, send time to arrival
+  is transport alone. A lateness allowance for a windowed job should be
+  set from the former, since that is how long an event can take to show
+  up.
 * **Boundary-aware completeness.** Process hour *H* with a look-back into
   *H-1* and a look-ahead into *H+1*, or only judge navigations whose request
   falls in the hour and whose last event is older than a lateness
-  allowance. That separates most start-of-hour cuts and late arrivals from
-  delivery loss. It can't remove the ambiguity: navigations run for hours,
-  and an absent tail stays invisible without an end signal.
+  allowance. That can reduce boundary omissions and lateness ambiguity. It
+  can't remove them: navigations run for hours, and an absent tail stays
+  invisible without an end signal.
 * **An explicit end of navigation.** A final "events sent: N" beacon on page
   hide makes an absent tail measurable. Until then, watch the share of
   navigations ending in mouse-down against box-change: a shift towards
