@@ -92,6 +92,8 @@ def profile(spark: SparkSession, data_dir: str) -> dict:
         requests.select(F.date_format(F.window("request_time", "5 minutes").start, "HH:mm").alias("from")), "from"
     )
     out["hw_type"] = _counts(requests, "hw_type")
+    out["relative_time_ms_range"] = events.agg(
+        F.min("relative_time_ms").alias("min"), F.max("relative_time_ms").alias("max")).first().asDict()
 
     client_navs = events.select("navigation").distinct()
     request_navs = requests.select("navigation").distinct()

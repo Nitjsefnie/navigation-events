@@ -113,6 +113,10 @@
     "hw_type=phone": 4690,
     "hw_type=tablet": 394
   },
+  "relative_time_ms_range": {
+    "min": 55,
+    "max": 41592338
+  },
   "navigations": {
     "with_client_events": 10454,
     "with_request": 9669,
