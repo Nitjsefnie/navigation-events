@@ -14,6 +14,7 @@ import matplotlib
 
 matplotlib.use("Agg")  # headless: the CLI runs without a display
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.ticker import MaxNLocator  # noqa: E402
 import pandas as pd  # noqa: E402
 from pyspark.sql import DataFrame  # noqa: E402
 
@@ -66,6 +67,7 @@ def plot_lost_events_histogram(histogram: pd.DataFrame, device: str, path: Path)
             ax.annotate(str(height), (xi, height), xytext=(0, 3), textcoords="offset points",
                         ha="center", fontsize=9, color=_TEXT)
     ax.set_ylim(0, max(totals + [1]) * 1.15)
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     ax.set_xticks(list(x), labels)
     ax.set_xlabel("lost events per navigation (missing prefix + inner gaps)", color=_MUTED)
     ax.set_ylabel("navigations", color=_MUTED)
