@@ -16,3 +16,10 @@ results/*
 !results/*.json
 !results/*.png
 !results/*.md
+# One subdirectory per device run: re-open it, deny its contents again,
+# name the output types back.
+!results/*/
+results/*/*
+!results/*/*.csv
+!results/*/*.json
+!results/*/*.png
